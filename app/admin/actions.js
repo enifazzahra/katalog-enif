@@ -4,6 +4,24 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSessionClient } from "@/lib/supabase/session";
 
+/**
+ * Memeriksa apakah admin sedang login di sisi server.
+ * Wajib dipanggil sebelum setiap aksi yang mengubah data.
+ */
+export async function periksaLogin() {
+  const supabase = await createSessionClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    redirect(`/admin/login?error=${encodeURIComponent("Silakan login terlebih dahulu.")}`);
+  }
+
+  return { supabase, user };
+}
+
 export async function login(formData) {
   const email = formData.get("email")?.toString().trim();
   const password = formData.get("password")?.toString();
@@ -51,15 +69,8 @@ export async function keluar() {
 export async function gantiPassword(arg1, arg2) {
   const formData = arg2 instanceof FormData ? arg2 : arg1;
 
-  const supabase = await createSessionClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    redirect(`/admin/login?error=${encodeURIComponent("Silakan login terlebih dahulu.")}`);
-  }
+  // Verifikasi login di server sebelum mengubah data
+  const { supabase } = await periksaLogin();
 
   const passwordBaru = (
     formData.get("password_baru") ||
@@ -106,6 +117,7 @@ export async function gantiPassword(arg1, arg2) {
   );
 }
 
+export const requireAuth = periksaLogin;
 export const ubahPassword = gantiPassword;
 export const logout = keluar;
 export const masuk = login;
